@@ -5,7 +5,7 @@ function App() {
   return (
     <BrowserRouter basename="/daniel">
       <nav style={{ display: "flex", gap: "1rem" }}>
-        <Link to="/">Home</Link>
+        <Link to="/">Inicio</Link>
         <Link to="/about">Acerca de</Link>
         <Link to="/map">Map</Link> 
       </nav>
