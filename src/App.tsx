@@ -7,7 +7,7 @@ function App() {
       <nav style={{ display: "flex", gap: "1rem" }}>
         <Link to="/">Home</Link>
         <Link to="/about">About</Link>
-        <Link to="/map">Map</Link>
+        <Link to="/map">Map</Link> 
       </nav>
 
       <Routes>
