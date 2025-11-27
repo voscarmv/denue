@@ -1,6 +1,6 @@
 import './App.css'
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
-import Map from "./Map";
+import MapWithTable from "./Map";
 function App() {
   return (
     <BrowserRouter basename="/daniel">
@@ -13,7 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
-        <Route path="/map" element={<Map />} />
+        <Route path="/map" element={<MapWithTable />} />
       </Routes>
     </BrowserRouter>
   )
