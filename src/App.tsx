@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import MapWithTable from "./Map";
 import MapPage from "./Map2";
 import MapPage3 from "./Map3";
+import MapPage4 from "./Map4";
+import MapPage5 from "./Map5";
 function App() {
   return (
     <BrowserRouter basename="/daniel">
@@ -12,6 +14,8 @@ function App() {
         <Link to="/map">Map</Link> 
         <Link to="/map2">Map2</Link>
         <Link to="/map3">Map3</Link>
+        <Link to="/map4">Map4</Link>
+        <Link to="/map5">Map5</Link>
       </nav>
 
       <Routes>
@@ -20,6 +24,8 @@ function App() {
         <Route path="/map" element={<MapWithTable />} />
         <Route path="/map2" element={<MapPage />} />
         <Route path="/map3" element={<MapPage3 />} />
+        <Route path="/map4" element={<MapPage4 />} />
+        <Route path="/map5" element={<MapPage5 />} />
       </Routes>
     </BrowserRouter>
   )
