@@ -1,41 +1,15 @@
 import { useState, useRef, useMemo, useCallback, type ChangeEvent } from "react";
 import { Map, Source, Layer, type MapRef, type MapLayerMouseEvent } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import Papa from "papaparse";
 
 import type { FeatureCollection, Feature, Point } from "geojson";
 import type { LayerSpecification } from "maplibre-gl";
 
 // ---------------------------------------------------------
-// Generate 30k points WITH RANDOM DATA
+// Map layer
 // ---------------------------------------------------------
-const randomNames = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
-
-const pointsGeoJSON: FeatureCollection<
-    Point,
-    { id: number; name: string; value: number }
-> = {
-    type: "FeatureCollection",
-    features: Array.from({ length: 30000 }).map((_, i) => ({
-        type: "Feature",
-        properties: {
-            id: i,
-            name: randomNames[Math.floor(Math.random() * randomNames.length)],
-            value: Math.floor(Math.random() * 1000),
-        },
-        geometry: {
-            type: "Point",
-            coordinates: [
-                -73.93 + Math.random() * 0.4,
-                40.7 + Math.random() * 0.4,
-            ],
-        },
-    })),
-};
-
-// ---------------------------------------------------------
-// Point layer (unclustered)
-// ---------------------------------------------------------
-const unclusteredLayer: LayerSpecification = {
+const pointLayer: LayerSpecification = {
     id: "points-layer",
     type: "circle",
     source: "points",
@@ -44,8 +18,8 @@ const unclusteredLayer: LayerSpecification = {
         "circle-color": [
             "case",
             ["boolean", ["feature-state", "selected"], false],
-            "#00E5FF", // selected
-            "#FF5722"  // default
+            "#00E5FF",
+            "#FF5722"
         ],
         "circle-stroke-width": 1,
         "circle-stroke-color": "#333",
@@ -58,97 +32,140 @@ const unclusteredLayer: LayerSpecification = {
 export default function MapPage3() {
     const mapRef = useRef<MapRef | null>(null);
 
+    const [csvData, setCsvData] = useState<any[]>([]);
+    console.log(csvData);
+    const [geojson, setGeojson] = useState<FeatureCollection<Point>>({
+        type: "FeatureCollection",
+        features: []
+    });
+
     const [search, setSearch] = useState("");
-    const [selectedFeature, setSelectedFeature] =
-        useState<Feature<Point, { id: number; name: string; value: number }> | null>(null);
+    const [selected, setSelected] = useState<Feature<Point> | null>(null);
 
-    // Search by ID *or* name
-    const filteredPoints = useMemo(() => {
-        if (!search.trim()) return pointsGeoJSON.features;
+    // ---------------------------------------------------------
+    // LOAD CSV FILE
+    // ---------------------------------------------------------
+    const handleCSVUpload = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const rows = results.data as any[];
+
+                // Build GeoJSON
+                const features: Feature<Point>[] = rows
+                    .filter(r => r.LATITUD && r.LONGITUD)
+                    .map((r, idx) => ({
+                        type: "Feature",
+                        id: idx,
+                        properties: r,
+                        geometry: {
+                            type: "Point",
+                            coordinates: [
+                                parseFloat(r.LONGITUD),
+                                parseFloat(r.LATITUD)
+                            ]
+                        }
+                    }));
+
+                setCsvData(rows);
+                setGeojson({ type: "FeatureCollection", features });
+            }
+        });
+    };
+
+    // ---------------------------------------------------------
+    // SEARCH
+    // ---------------------------------------------------------
+    const filtered = useMemo(() => {
+        if (!search.trim()) return geojson.features;
+
         const s = search.toLowerCase();
-        return pointsGeoJSON.features.filter((f) =>
-            f.properties!.id.toString().includes(s) ||
-            f.properties!.name.toLowerCase().includes(s)
-        );
-    }, [search]);
 
-    // -------------------------------------------------------
-    // Handle clicking a point on the MAP
-    // -------------------------------------------------------
+        return geojson.features.filter((f) =>
+            JSON.stringify(f.properties).toLowerCase().includes(s)
+        );
+    }, [search, geojson]);
+
+    // ---------------------------------------------------------
+    // MAP CLICK
+    // ---------------------------------------------------------
     const handleMapClick = useCallback((e: MapLayerMouseEvent) => {
         const map = mapRef.current?.getMap();
         if (!map) return;
 
         const features = map.queryRenderedFeatures([e.point.x, e.point.y], {
-            layers: ["points-layer"],
+            layers: ["points-layer"]
         });
 
         if (!features.length) return;
 
-        const feature = features[0] as unknown as Feature<
-            Point,
-            { id: number; name: string; value: number }
-        >;
-
-        setSelectedFeature(feature);
-
-        const [lng, lat] = feature.geometry.coordinates;
+        const f = features[0] as Feature<Point>;
+        setSelected(f);
 
         map.flyTo({
-            center: [lng, lat],
+            center: f.geometry.coordinates as [number, number],
             zoom: 12,
-            duration: 800,
+            duration: 800
         });
     }, []);
 
-    // -------------------------------------------------------
-    // Handle clicking a row in the TABLE
-    // -------------------------------------------------------
-    const handleRowClick = (
-        feature: Feature<Point, { id: number; name: string; value: number }>
-    ) => {
-        setSelectedFeature(feature);
-        const [lng, lat] = feature.geometry.coordinates;
+    // ---------------------------------------------------------
+    // TABLE ROW CLICK
+    // ---------------------------------------------------------
+    const handleRowClick = (f: Feature<Point>) => {
+        setSelected(f);
 
         mapRef.current?.flyTo({
-            center: [lng, lat],
+            center: f.geometry.coordinates as [number, number],
             zoom: 12,
-            duration: 800,
+            duration: 800
         });
     };
 
-    // Highlight selected point
-    const updateFeatureState = useCallback(() => {
+    // ---------------------------------------------------------
+    // UPDATE SELECTED FEATURE STATE
+    // ---------------------------------------------------------
+    useMemo(() => {
         const map = mapRef.current?.getMap();
         if (!map) return;
 
         map.removeFeatureState({ source: "points" });
 
-        if (selectedFeature) {
+        if (selected) {
             map.setFeatureState(
-                { source: "points", id: selectedFeature.properties!.id },
+                { source: "points", id: selected.id },
                 { selected: true }
             );
         }
-    }, [selectedFeature]);
-
-    useMemo(updateFeatureState, [selectedFeature]);
+    }, [selected]);
 
     return (
         <div style={{ display: "flex", height: "100vh" }}>
-            {/* ----------------------- SIDEBAR ----------------------- */}
+            {/* SIDEBAR */}
             <div
                 style={{
-                    width: "320px",
+                    width: "360px",
                     borderRight: "1px solid #ccc",
                     padding: "10px",
                     overflowY: "auto",
                 }}
             >
-                <h3>Points</h3>
+                <h3>Upload CSV</h3>
 
-                {/* ---------------------- FEATURE DETAILS (moved to top) ---------------------- */}
-                {selectedFeature && (
+                {/* Upload Button */}
+                <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    style={{ marginBottom: "10px" }}
+                />
+
+                {/* Selected Feature */}
+                {selected && (
                     <div
                         style={{
                             marginBottom: "20px",
@@ -156,21 +173,21 @@ export default function MapPage3() {
                             background: "#f7f7f7",
                             borderRadius: "6px",
                             border: "1px solid #ddd",
-                            fontSize: "14px",
+                            fontSize: "13px",
                         }}
                     >
-                        <h4>Selected Point</h4>
-                        <p><b>ID:</b> {selectedFeature.properties!.id}</p>
-                        <p><b>Name:</b> {selectedFeature.properties!.name}</p>
-                        <p><b>Value:</b> {selectedFeature.properties!.value}</p>
+                        <h4>Selected Record</h4>
+                        {Object.entries(selected.properties ?? {}).map(([k, v]) => (
+                            <p key={k}><b>{k}:</b> {String(v)}</p>
+                        ))}
                     </div>
                 )}
 
                 {/* Search */}
                 <input
-                    placeholder="Search by ID or Name..."
+                    placeholder="Search..."
                     value={search}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                    onChange={(e) => setSearch(e.target.value)}
                     style={{
                         width: "100%",
                         padding: "6px",
@@ -180,56 +197,59 @@ export default function MapPage3() {
                 />
 
                 {/* Table */}
-                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse" }}>
+                <table
+                    style={{
+                        width: "100%",
+                        fontSize: "12px",
+                        borderCollapse: "collapse",
+                    }}
+                >
                     <thead>
                         <tr>
-                            <th style={{ textAlign: "left" }}>ID</th>
-                            <th style={{ textAlign: "left" }}>Name</th>
-                            <th style={{ textAlign: "left" }}>Value</th>
+                            <th style={{ textAlign: "left" }}>FOLIO</th>
+                            <th style={{ textAlign: "left" }}>LIB</th>
+                            <th style={{ textAlign: "left" }}>TELEFONO</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredPoints.slice(0, 500).map((f) => (
+                        {filtered.slice(0, 500).map((f) => (
                             <tr
-                                key={f.properties!.id}
+                                key={f.id}
                                 onClick={() => handleRowClick(f)}
                                 style={{
                                     cursor: "pointer",
                                     background:
-                                        selectedFeature?.properties!.id === f.properties!.id
-                                            ? "#e0f7fa"
-                                            : "transparent",
+                                        selected?.id === f.id ? "#e0f7fa" : "transparent",
                                 }}
                             >
-                                <td>{f.properties!.id}</td>
-                                <td>{f.properties!.name}</td>
-                                <td>{f.properties!.value}</td>
+                                <td>{f.properties?.FOLIO}</td>
+                                <td>{f.properties?.LIB}</td>
+                                <td>{f.properties?.TELEFONO}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
 
-                <p style={{ fontSize: "12px", marginTop: "10px" }}>
-                    Showing first 500 / {filteredPoints.length} matches
+                <p style={{ fontSize: "11px", marginTop: "10px" }}>
+                    Showing {filtered.length > 500 ? 500 : filtered.length} / {filtered.length}
                 </p>
             </div>
 
-
-            {/* ----------------------- MAP ----------------------- */}
+            {/* MAP */}
             <div style={{ flex: 1 }}>
                 <Map
                     ref={mapRef}
                     onClick={handleMapClick}
                     initialViewState={{
-                        longitude: -73.95,
-                        latitude: 40.75,
-                        zoom: 9,
+                        longitude: -99,
+                        latitude: 24,
+                        zoom: 4,
                     }}
                     style={{ width: "100%", height: "100%" }}
                     mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
                 >
-                    <Source id="points" type="geojson" data={pointsGeoJSON} promoteId="id">
-                        <Layer {...unclusteredLayer} />
+                    <Source id="points" type="geojson" data={geojson} promoteId="id">
+                        <Layer {...pointLayer} />
                     </Source>
                 </Map>
             </div>
