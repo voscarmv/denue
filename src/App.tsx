@@ -11,7 +11,7 @@ function App() {
         <Link to="/about">Acerca de</Link>
         <Link to="/map">Map</Link> 
         <Link to="/map2">Map2</Link>
-        <Link to="/map3">Map3+</Link>
+        <Link to="/map3">Map3++</Link>
       </nav>
 
       <Routes>
