@@ -9,12 +9,33 @@ import type { LayerSpecification } from "maplibre-gl";
 // ---------------------------------------------------------
 // Map layer
 // ---------------------------------------------------------
+// const pointLayer: LayerSpecification = {
+//     id: "points-layer",
+//     type: "circle",
+//     source: "points",
+//     paint: {
+//         "circle-radius": 4,
+//         "circle-color": [
+//             "case",
+//             ["boolean", ["feature-state", "selected"], false],
+//             "#00E5FF",
+//             "#FF5722"
+//         ],
+//         "circle-stroke-width": 1,
+//         "circle-stroke-color": "#333",
+//     },
+// };
 const pointLayer: LayerSpecification = {
     id: "points-layer",
     type: "circle",
     source: "points",
     paint: {
-        "circle-radius": 4,
+        "circle-radius": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            8,
+            4
+        ],
         "circle-color": [
             "case",
             ["boolean", ["feature-state", "selected"], false],
@@ -25,11 +46,10 @@ const pointLayer: LayerSpecification = {
         "circle-stroke-color": "#333",
     },
 };
-
 // ---------------------------------------------------------
 // Component
 // ---------------------------------------------------------
-export default function MapPage5() {
+export default function MapPage() {
     const mapRef = useRef<MapRef | null>(null);
 
     const [csvData, setCsvData] = useState<any[]>([]);
