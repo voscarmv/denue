@@ -2,6 +2,11 @@
 
 Este proyecto es una aplicación web interactiva construida con **React**, **Vite** y **MapLibre GL JS**, diseñada para facilitar la carga, análisis exploratorio y visualización en un mapa de los registros comerciales proporcionados por el DENUE (Directorio Estadístico Nacional de Unidades Económicas) de México.
 
+## Fuente de los Datos
+
+Los datos visualizados en esta aplicación pueden ser descargados de manera gratuita desde el portal oficial del INEGI:
+🔗 [https://www.inegi.org.mx/app/descarga/default.html](https://www.inegi.org.mx/app/descarga/default.html)
+
 ## Características
 
 - 📊 **Carga Local de Datos**: Soporta la lectura y parseo eficiente (con `papaparse`) de los archivos `.csv` en el formato estandarizado del INEG directamente en tu navegador. Tus datos no se envían a ningún servidor, asegurando total privacidad y velocidad.
