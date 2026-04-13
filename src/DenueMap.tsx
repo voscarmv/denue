@@ -43,6 +43,7 @@ export default function DenueMap() {
     });
 
     const [search, setSearch] = useState("");
+    const [personnelFilter, setPersonnelFilter] = useState("");
     const [selected, setSelected] = useState<Feature<Point> | null>(null);
 
     // ---------------------------------------------------------
@@ -88,17 +89,41 @@ export default function DenueMap() {
     };
 
     // ---------------------------------------------------------
-    // SEARCH
+    // SEARCH & FILTERS
     // ---------------------------------------------------------
+    const uniquePersonnelOptions = useMemo(() => {
+        const options = new Set<string>();
+        geojson.features.forEach(f => {
+            if (f.properties?.per_ocu) {
+                options.add(String(f.properties.per_ocu));
+            }
+        });
+        return Array.from(options).sort((a, b) => {
+            // Helper to extract the first number in the string
+            const getNum = (str: string) => {
+                const match = str.match(/\d+/);
+                return match ? parseInt(match[0], 10) : 0;
+            };
+            return getNum(a) - getNum(b);
+        });
+    }, [geojson]);
+
     const filtered = useMemo(() => {
-        if (!search.trim()) return geojson.features;
+        let result = geojson.features;
 
-        const s = search.toLowerCase();
+        if (personnelFilter) {
+            result = result.filter(f => String(f.properties?.per_ocu) === personnelFilter);
+        }
 
-        return geojson.features.filter((f) =>
-            JSON.stringify(f.properties).toLowerCase().includes(s)
-        );
-    }, [search, geojson]);
+        if (search.trim()) {
+            const s = search.toLowerCase();
+            result = result.filter((f) =>
+                JSON.stringify(f.properties).toLowerCase().includes(s)
+            );
+        }
+
+        return result;
+    }, [search, personnelFilter, geojson]);
 
     // ---------------------------------------------------------
     // MAP CLICK
@@ -178,6 +203,27 @@ export default function DenueMap() {
                     onChange={handleCSVUpload}
                     style={{ marginBottom: "15px", width: "100%" }}
                 />
+
+                {/* Filters */}
+                <select
+                    value={personnelFilter}
+                    onChange={(e) => setPersonnelFilter(e.target.value)}
+                    style={{
+                        width: "100%",
+                        padding: "8px",
+                        marginBottom: "10px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        boxSizing: "border-box",
+                        backgroundColor: "white",
+                        fontFamily: "sans-serif"
+                    }}
+                >
+                    <option value="">Todo el personal ocupado</option>
+                    {uniquePersonnelOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                </select>
 
                 {/* Search */}
                 <input
@@ -282,7 +328,7 @@ export default function DenueMap() {
                     style={{ width: "100%", height: "100%" }}
                     mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
                 >
-                    <Source id="points" type="geojson" data={geojson} promoteId="id">
+                    <Source id="points" type="geojson" data={{ type: "FeatureCollection", features: filtered }} promoteId="id">
                         <Layer {...pointLayer} />
                     </Source>
                 </Map>
